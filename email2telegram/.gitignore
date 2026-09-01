@@ -1,4 +1,4 @@
-/.env.yaml
 /credentials.json
-/token_azffrescue.json
+/token*.json
 /TelegramDetails.txt
+/__pycache__/

@@ -8,19 +8,18 @@ import json
 
 # Environment variables
 SCOPES = ['https://www.googleapis.com/auth/gmail.modify']
-TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 TELEGRAM_TOPIC_ID = int(os.environ.get("TELEGRAM_TOPIC_ID", "0"))
 GCP_PROJECT = os.environ.get("GCP_PROJECT")
 
-def get_token_from_secret(secret_name="gmail_token_azffrescue"):
+def get_secret(secret_name):
     client = secretmanager.SecretManagerServiceClient()
     name = f"projects/{GCP_PROJECT}/secrets/{secret_name}/versions/latest"
     response = client.access_secret_version(request={"name": name})
     return response.payload.data.decode("UTF-8")
 
 def authenticate_gmail():
-    token_data = get_token_from_secret()
+    token_data = get_secret(os.environ["GMAIL_TOKEN_SECRET"])
     creds = Credentials.from_authorized_user_info(json.loads(token_data), SCOPES)
     return build('gmail', 'v1', credentials=creds)
 
@@ -72,7 +71,8 @@ def send_to_telegram(subject, sender, body):
         'text': text,
         'parse_mode': 'Markdown'
     }
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    telegram_bot_token = get_secret(os.environ["TELEGRAM_BOT_TOKEN_SECRET"])
+    url = f"https://api.telegram.org/bot{telegram_bot_token}/sendMessage"
     response = requests.post(url, json=payload)
     return response.ok
 
