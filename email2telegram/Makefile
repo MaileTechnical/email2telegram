@@ -29,7 +29,7 @@ deploy:
 	esac; \
 	gcloud functions deploy $$FUNCTION_NAME \
 		--entry-point=handle_request \
-		--runtime=python310 \
+		--runtime=python313 \
 		--trigger-topic=$$TRIGGER_TOPIC \
 		--source=. \
 		--env-vars-file=$$ENV_FILE \
@@ -63,7 +63,7 @@ deploy-watch:
 	esac; \
 	gcloud functions deploy $$FUNCTION_NAME \
 		--entry-point=app \
-		--runtime=python310 \
+		--runtime=python313 \
 		--trigger-http \
 		--no-allow-unauthenticated \
 		--source=renew_watch \
