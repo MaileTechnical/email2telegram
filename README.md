@@ -62,9 +62,3 @@ gcloud scheduler jobs list   --location=us-central1   --project=email-to-telegra
 ```
 
 The four production functions should normally be `python313` and `ACTIVE`, and both Scheduler jobs should be `ENABLED`.
-
-## Repository layout
-
-The deployable project is the `email2telegram/` directory in this repository. The detailed system documentation lives under `email2telegram/docs/`.
-
-Secrets and OAuth credential files are deliberately not stored in the public repository.

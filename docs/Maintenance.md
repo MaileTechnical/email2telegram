@@ -94,9 +94,13 @@ The actual Gmail address does not need to appear in the repository documentation
 
 ### Step 2: Create the Gmail OAuth token
 
-If the Gmail account has not yet been used, send a few emails to and from it to establish some normal usage. This step involves requesting API authorization to the Gmail account, and Google may sometimes treat authorization from a newly created account as suspicious.
+If the Gmail account has not yet been used, send a few emails to and from it
+to establish some normal usage. This step involves requesting API authorization
+to the Gmail account, and Google sometimes treats such a request for a newly 
+created account as suspicious.
 
-Ensure all emails sent to the new account are received in the inbox. Mark any that fall into the Spam folder as not spam.
+Ensure all emails sent to the new account are received in the inbox.
+Mark any that fall into the Spam folder as not spam.
 
 From the repository root, run the OAuth-token utility:
 

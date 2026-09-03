@@ -6,7 +6,7 @@ Normally, no manual action is required.
 
 Gmail watches are renewed daily by Cloud Scheduler. Incoming email causes Gmail Pub/Sub notifications, which invoke the appropriate forwarding function.
 
-Forwarding functions are configured to retry failed event deliveries. This means a transient failure should normally result in another delivery attempt without waiting for another incoming email.
+Pub/Sub notifications are configured to retry failed event deliveries. This means a transient failure should normally result in another delivery attempt without waiting for another incoming email.
 
 Because event delivery is at-least-once, duplicate event delivery and consequently duplicate Telegram messages are possible. This is an accepted tradeoff in favor of avoiding lost messages.
 
@@ -48,21 +48,12 @@ renew-gmail-watch-retrieve-job  ENABLED  0 6 * * *  America/Phoenix
 
 ## 3. Test forwarding
 
-The most useful functional test is a real email.
+Send an email to the designated Gmail account for a route.
+Verify that it appears in the Telegram topic for that route.
 
-### Rescue
-
-Send an email to the designated Gmail account for the Rescue route.
-
-Verify that it appears in the Rescue Telegram topic.
-
-### Retrieve
-
-Send an email to the designated Gmail account for the Retrieve route.
-
-Verify that it appears in the Retrieve Telegram topic.
-
-These tests exercise the complete forwarding path: Gmail, the watch, Pub/Sub, the Cloud Function, Gmail message retrieval, Secret Manager, Telegram authentication, and Telegram delivery.
+This test exercises the complete forwarding path: Gmail,
+the watch, Pub/Sub, the Cloud Function, Gmail message retrieval,
+Secret Manager, Telegram authentication, and Telegram delivery.
 
 ## 4. Test watch renewal
 
@@ -86,7 +77,8 @@ gcloud scheduler jobs run renew-gmail-watch-retrieve-job \
 
 These commands exercise the production Scheduler → OIDC → renewal-function path.
 
-A successful Scheduler invocation only establishes that Scheduler accepted the request. Check the renewal function logs to determine whether the Gmail `users.watch()` operation itself succeeded.
+A successful Scheduler invocation only establishes that Scheduler accepted the request.
+Check the renewal function logs to determine whether the Gmail `users.watch()` operation itself succeeded.
 
 ## 5. View logs
 
@@ -265,7 +257,7 @@ or both:
 make deploy-all
 ```
 
-These deployments enable retries on the forwarding functions.
+The `deploy-all` target means both forwarding functions; it does not include the renewal functions.
 
 ### Watch renewal
 
@@ -279,8 +271,6 @@ or both:
 ```bash
 make deploy-watch-all
 ```
-
-The `deploy-all` target means both forwarding functions; it does not include the renewal functions.
 
 ## 10. Scheduler configuration
 
