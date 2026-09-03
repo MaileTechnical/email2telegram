@@ -4,8 +4,8 @@ This project forwards incoming email from designated Gmail accounts to specific 
 
 The system currently supports two forwarding paths:
 
-- **Rescue:** `<rescueAddress>@gmail.com` → Rescue topic
-- **Retrieve:** `<retrieveAddress>@gmail.com` → Retrieve topic
+- **Rescue:** `rescueAddress` → Rescue topic
+- **Retrieve:** `retrieveAddress` → Retrieve topic
 
 Each path is independent at the Gmail/Pub/Sub/Cloud Function level while sharing the Telegram bot and Google Cloud project.
 
