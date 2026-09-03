@@ -6,6 +6,10 @@ Normally, no manual action is required.
 
 Gmail watches are renewed daily by Cloud Scheduler. Incoming email causes Gmail Pub/Sub notifications, which invoke the appropriate forwarding function.
 
+Forwarding functions are configured to retry failed event deliveries. This means a transient failure should normally result in another delivery attempt without waiting for another incoming email.
+
+Because event delivery is at-least-once, duplicate event delivery and consequently duplicate Telegram messages are possible. This is an accepted tradeoff in favor of avoiding lost messages.
+
 ## 2. Check production status
 
 ### Functions
@@ -162,6 +166,8 @@ Look for:
 * Telegram HTTP errors;
 * Python exceptions.
 
+A function exception should normally cause the event delivery to be retried. If the message remains unread, the retry should provide another opportunity to process it.
+
 ### Step 4: Check Telegram
 
 Verify that:
@@ -172,7 +178,46 @@ Verify that:
 * the configured topic ID is correct;
 * the bot token is valid.
 
-## 7. Troubleshooting a renewal failure
+### Step 5: Allow for retry
+
+A failed forwarding invocation does not necessarily mean that the message has been lost.
+
+The event-trigger retry mechanism should attempt delivery again. If the failure is transient, the message should eventually be forwarded without requiring another incoming Gmail message.
+
+If repeated attempts fail, inspect the forwarding function logs to determine the underlying problem.
+
+## 7. Duplicate Telegram messages
+
+A duplicate Telegram message can occur even when retries are functioning correctly.
+
+For example:
+
+```text
+Forwarding function
+       │
+       ▼
+Telegram accepts message
+       │
+       ▼
+Function does not successfully complete
+       │
+       ▼
+Event is retried
+       │
+       ▼
+Same Gmail message is still unread
+       │
+       ▼
+Telegram receives it again
+```
+
+This can happen if the Telegram request succeeds but the function experiences a timeout or other failure before it can complete normally.
+
+Duplicates are therefore not, by themselves, evidence that the retry mechanism is malfunctioning.
+
+For this application, a duplicate is preferable to a lost message.
+
+## 8. Troubleshooting a renewal failure
 
 First verify the Scheduler job.
 
@@ -203,7 +248,7 @@ Then inspect the renewal function logs.
 
 A successful manual Scheduler invocation only establishes that Scheduler accepted the request. The function logs should be checked to determine whether the Gmail `users.watch()` operation itself succeeded.
 
-## 8. Deploying code
+## 9. Deploying code
 
 After a source change has been committed and pushed, deploy the affected function.
 
@@ -220,6 +265,8 @@ or both:
 make deploy-all
 ```
 
+These deployments enable retries on the forwarding functions.
+
 ### Watch renewal
 
 ```bash
@@ -235,7 +282,7 @@ make deploy-watch-all
 
 The `deploy-all` target means both forwarding functions; it does not include the renewal functions.
 
-## 9. Scheduler configuration
+## 10. Scheduler configuration
 
 Scheduler configuration is normally established with:
 
@@ -254,7 +301,9 @@ These targets create the job if it does not exist or update it if it does.
 
 Do not recreate Scheduler jobs merely because application code was redeployed. Redeployment does not change the Scheduler configuration.
 
-## 10. Python runtime upgrades
+Scheduler retry settings are independent of the event-trigger retry settings used by the forwarding functions.
+
+## 11. Python runtime upgrades
 
 The current production runtime is Python 3.13.
 
@@ -271,7 +320,7 @@ For a future runtime upgrade:
 
 A runtime upgrade should be treated as a deployment change, not merely as a local Python installation change.
 
-## 11. Recovery from a failed deployment
+## 12. Recovery from a failed deployment
 
 If a deployment fails:
 
@@ -284,13 +333,13 @@ If a deployment fails:
 
 Because Google Cloud resources and secrets are outside Git, restoring source code alone is not sufficient to recreate the complete production system.
 
-## 12. Recreating the production system
+## 13. Recreating the production system
 
 The Git repository contains the application source and the configuration needed to deploy it, but it does not contain all of the state required for a functioning production installation.
 
 A complete recreation requires both the repository and the external services/resources described below.
 
-### 12.1 Information stored in Git
+### 13.1 Information stored in Git
 
 The repository contains:
 
@@ -304,7 +353,7 @@ The repository contains:
 
 The route environment files contain secret *names* and other configuration, but not secret values.
 
-### 12.2 External resources that must exist
+### 13.2 External resources that must exist
 
 A functioning installation also requires:
 
@@ -336,7 +385,7 @@ A functioning installation also requires:
 * the destination topics;
 * bot membership and permission to post.
 
-### 12.3 Recreating Google Cloud resources
+### 13.3 Recreating Google Cloud resources
 
 The Cloud Functions, Pub/Sub topics, Scheduler jobs, and Secret Manager metadata are infrastructure that can be recreated from the documented configuration.
 
@@ -361,7 +410,7 @@ The normal order for recreating a route is:
 
 The exact resource names are not intrinsically important to the application; what matters is that the environment file, Makefile, Gmail watch, Pub/Sub topic, functions, and Scheduler job all agree.
 
-### 12.4 What cannot be recovered from Git alone
+### 13.4 What cannot be recovered from Git alone
 
 Git does not contain:
 
@@ -376,7 +425,7 @@ Those items must therefore either be preserved separately or recreated through t
 
 In particular, do not assume that restoring the repository and redeploying the functions will restore Gmail watches. A Gmail watch is external state and must be established by calling the renewal function.
 
-### 12.5 Recovery principle
+### 13.5 Recovery principle
 
 The repository should be sufficient to explain **how to rebuild the software and infrastructure**, while secrets and externally owned service state must be recovered or recreated separately.
 

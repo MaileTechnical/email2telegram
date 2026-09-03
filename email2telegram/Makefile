@@ -31,6 +31,7 @@ deploy:
 		--entry-point=handle_request \
 		--runtime=python313 \
 		--trigger-topic=$$TRIGGER_TOPIC \
+		--retry \
 		--source=. \
 		--env-vars-file=$$ENV_FILE \
 		--region=$(REGION) \

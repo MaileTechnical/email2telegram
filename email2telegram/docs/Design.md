@@ -121,7 +121,46 @@ A successful HTTP response is required before the Gmail message is marked read.
 
 The forwarding entry point catches exceptions only to print the traceback, then re-raises the exception. This allows the platform to record the invocation as failed.
 
-The Pub/Sub triggers are currently configured with no retry policy. Consequently, a failed invocation is not automatically retried by the trigger configuration.
+The forwarding triggers are configured to retry failed event deliveries.
+
+This provides **at-least-once delivery** rather than at-most-once delivery. Eventarc can deliver an event more than once, so the forwarding function can receive duplicate events.
+
+The retry behavior is intentional. A transient failure is more serious for this application than an occasional duplicate Telegram message. Without retries, a failed invocation could leave an unread Gmail message waiting indefinitely until some later Gmail notification happens to cause another invocation. With retries enabled, a failed invocation is automatically attempted again.
+
+### Duplicate delivery
+
+The forwarding operation cannot provide exactly-once delivery because Gmail and Telegram are independent external systems.
+
+The important sequence is:
+
+```text
+send message to Telegram
+        │
+        ├── Telegram accepts message
+        │
+        └── function fails before completing successfully
+                │
+                ▼
+             retry
+                │
+                ▼
+        same Gmail message may be
+        sent to Telegram again
+```
+
+This can happen, for example, if Telegram accepts the request but the response is lost or times out.
+
+The implementation reduces duplicate exposure by marking the Gmail message read only after successful Telegram delivery. A retry therefore normally encounters only messages that remain unread.
+
+Nevertheless, duplicate Telegram delivery is possible and is an accepted limitation.
+
+Google recommends that retryable event handlers be idempotent because Eventarc provides at-least-once delivery. In this application, complete idempotency across Gmail and Telegram is not practical without adding persistent delivery state or an idempotency facility from the destination service. The system instead favors eventual delivery over strict duplicate avoidance.
+
+### Retry policy
+
+Retries are enabled on the forwarding functions through the `--retry` option in the Makefile.
+
+The renewal functions do not use this event-trigger retry policy. Their HTTP invocations are retried independently by Cloud Scheduler according to the Scheduler configuration.
 
 ## 3. Gmail watch renewal
 
@@ -177,7 +216,7 @@ OAuth token generation is supported by `utils/genOauthToken.py`. Credential mate
 
 The Makefile is the operational interface to deployment.
 
-Forwarding functions are deployed from the project root with `--source=.`.
+Forwarding functions are deployed from the project root with `--source=.` and retries enabled.
 
 Renewal functions are deployed from `renew_watch/` with `--source=renew_watch`.
 
@@ -204,8 +243,15 @@ A failure of a renewal invocation should be diagnosable without changing the for
 Route-specific deployment settings are kept outside the Python implementation.
 This makes adding another route mostly a deployment/configuration task which should require no code changes.
 
+### Retry versus duplicate delivery
+
+The system favors **at-least-once delivery** over at-most-once delivery.
+
+A missed rescue or retrieve message can have operational consequences, whereas a duplicate Telegram message is primarily an inconvenience. Enabling retries therefore provides the more appropriate reliability tradeoff for this application.
+
+The tradeoff is accepted because the forwarding path crosses two independent systems—Gmail and Telegram—and cannot atomically mark a Gmail message as processed at the same time that it sends the Telegram message.
+
 ### Repository portability
 
 Nothing in the runtime design depends on the GitHub repository owner or repository URL.
 Google Cloud deployment is based on the local source directory and explicit Google Cloud resource names.
-
