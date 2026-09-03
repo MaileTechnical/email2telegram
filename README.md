@@ -1,5 +1,7 @@
 # Email to Telegram
 
+![License](https://img.shields.io/badge/License-Apache%202.0-blue)
+
 This project forwards incoming email from designated Gmail accounts to specific topics in an Arizona Free Flight Telegram group.
 
 The system currently supports two forwarding paths:
