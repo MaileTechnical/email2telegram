@@ -427,7 +427,23 @@ Never:
 
 If a secret is rotated, update Secret Manager and then test the affected route.
 
-Secret Manager supports multiple secret versions, so rotating a secret does not require putting the new value into source-controlled configuration.
+Secret Manager supports multiple secret versions, so rotating a secret does not
+require putting the new value into source-controlled configuration.
+
+### Local credential files
+
+Local OAuth token files produced during Gmail authorization are temporary working files.
+Once the token has been successfully stored in Google Cloud Secret Manager and the deployed
+renewal function has been verified, the local token files should be deleted.
+
+The repository does not require local copies of production OAuth tokens for normal 
+operation or disaster recovery. 
+If a Gmail OAuth token must be recreated, use `utils/genOauthToken.py` to authorize the
+account again and store the resulting token in the appropriate Secret Manager secret.
+
+Likewise, no separate local copy of the Telegram bot token is required.
+The production token is maintained in Secret Manager and can be replaced through Telegram's BotFather if necessary.
+
 
 ## 8. Repository portability
 
