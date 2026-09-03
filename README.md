@@ -62,3 +62,12 @@ gcloud scheduler jobs list   --location=us-central1   --project=email-to-telegra
 ```
 
 The four production functions should normally be `python313` and `ACTIVE`, and both Scheduler jobs should be `ENABLED`.
+
+## License
+
+This project is licensed under the Apache License, Version 2.0.
+
+See the [LICENSE](LICENSE) file for the complete license text.
+
+Copyright 2026 John R. Wolfe
+
