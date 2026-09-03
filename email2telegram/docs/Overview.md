@@ -12,8 +12,8 @@ The system is deliberately small. It does not attempt to become a general-purpos
 
 | Path | Gmail account | Pub/Sub topic | Telegram topic |
 |---|---|---|---|
-| Rescue | `<rescueAddress>@gmail.com` | `gmail-notifications-rescue` | `4309` |
-| Retrieve | `<retrieveAddress>@gmail.com` | `gmail-notifications-retrieve` | `13792` |
+| Rescue | `rescueAddress` | `gmail-notifications-rescue` | `4309` |
+| Retrieve | `retrieveAddress` | `gmail-notifications-retrieve` | `13792` |
 
 Both paths use the same Telegram group and bot, but separate Gmail OAuth tokens, Pub/Sub topics, Cloud Functions, and Telegram topics.
 

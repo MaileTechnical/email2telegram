@@ -45,7 +45,7 @@ The most useful functional test is a real email.
 Send an email to:
 
 ```text
-<rescueAddress>@gmail.com
+rescueAddress
 ```
 
 Verify that it appears in the Rescue Telegram topic.
@@ -55,7 +55,7 @@ Verify that it appears in the Rescue Telegram topic.
 Send an email to:
 
 ```text
-<retrieveAddress>@gmail.com
+retrieveAddress
 ```
 
 Verify that it appears in the Retrieve Telegram topic.

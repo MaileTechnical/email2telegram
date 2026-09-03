@@ -71,7 +71,7 @@ Use the existing naming conventions.
 
 If the Gmail account has not yet been used, send a few emails to and from it to
 establish some normal usage, as this step involves requesting API authorization to
-the Gmail account.  Sometimes, Google views such a request on a newly created acccount
+the Gmail account.  Sometimes, Google views such a request on a newly created account
 as suspicious and denies the request.
 Ensure all emails sent to the new account are received in the inbox.
 Mark any that fall into the spam folder as not spam.
