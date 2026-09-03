@@ -1,37 +1,70 @@
 # Email to Telegram
-Forward incoming email to a specific topic within a Telegram group.  
-Deployed as a Google Cloud Function triggered by a Gmail pub/sub push notification, reads newly received email messages and forwards each one to a sepcific topic within a Telegram group.
 
-## Dependencies 
-- Google Cloud Functions, Run, Scheduler, API
-- Gmail pub/sub push notification
-- Telegram Bot API
+This project forwards incoming email from designated Gmail accounts to specific topics in an Arizona Free Flight Telegram group.
 
-## Design and Implementation
-Reading and forwarding of email is done by a Python script running on Google Cloud Function.  This Google Cloud function is triggered by a watch configured on a Gmail pub/sub topic for a particular Gmail inbox.  Since a Google watch has a finite lifetime, it must be periodically renewed, and this renewal is handled by another Python script deployed on Google Run and triggered by Google Scheduler.
+The system currently supports two forwarding paths:
 
-## Gmail Authentication
-Access to the Gmail inbox of interest is provided via a token generated using the Gmail OAuth flow.  This token is then stored within the Google Cloud Secret Manager for the project.
+- **Rescue:** `<rescueAddress>@gmail.com` → Rescue topic
+- **Retrieve:** `<retrieveAddress>@gmail.com` → Retrieve topic
 
-## Telegram Authentication
-Access to the Telegram group to which the email is forwarded is provided by a custom Telegram bot, which does nothing aside from existing as a member of the Telegram group of interest.
+Each path is independent at the Gmail/Pub/Sub/Cloud Function level while sharing the Telegram bot and Google Cloud project.
 
-## Deployment
-Use ```make deploy``` to rebuild and deploy each of the two pieces of the tool after making changes.
+## Architecture at a glance
 
-## Missing Pieces
-A few bits are not stored in this public repository.
+```text
+Gmail account
+    │
+    │ Gmail watch
+    ▼
+Google Pub/Sub topic
+    │
+    │ notification
+    ▼
+Cloud Function: email-to-telegram-*
+    │
+    │ Gmail API
+    │ Telegram Bot API
+    ▼
+Arizona Free Flight Telegram topic
+```
 
-### .env.yaml
-Defines environment variables:
-- TELEGRAM_BOT_TOKEN
-- TELEGRAM_CHAT_ID
-- TELEGRAM_TOPIC_ID
-- GCP_PROJECT
+Gmail watches have a finite lifetime, so each path also has a scheduled renewal function:
 
-### token_<targetGmailUsername>.json
-Gmail access token generated through OAuth flow by running utils/genOauthToken.py and authenticating with the <targetGmailUsername>@gmail.com, which is used only as an email account.  My personal Google Account has all the Google Cloud development gizmos associated with it.
+```text
+Cloud Scheduler
+    │
+    │ daily at 06:00 America/Phoenix
+    ▼
+Cloud Function: renew-gmail-watch-*
+    │
+    ▼
+Gmail API users.watch()
+```
 
-### credentials.json
-Google credentials for my personal Google Account so that these tools can access the Google API.
+## Documentation
 
+- [Overview](docs/Overview.md) — purpose, scope, and system inventory
+- [Design](docs/Design.md) — architecture and implementation
+- [Operations](docs/Operations.md) — deployment, verification, monitoring, and troubleshooting
+- [Maintenance](docs/Maintenance.md) — changing the system and adding forwarding paths
+- [Contributing](docs/Contributing.md) — development workflow and repository portability
+
+## Quick operational checks
+
+From the `email2telegram/` directory:
+
+```bash
+gcloud functions list   --project=email-to-telegram-455900   --regions=us-central1   --format="table(name.basename(),buildConfig.runtime,state)"
+```
+
+```bash
+gcloud scheduler jobs list   --location=us-central1   --project=email-to-telegram-455900   --format="table(name.basename(),state,schedule,timeZone)"
+```
+
+The four production functions should normally be `python313` and `ACTIVE`, and both Scheduler jobs should be `ENABLED`.
+
+## Repository layout
+
+The deployable project is the `email2telegram/` directory in this repository. The detailed system documentation lives under `email2telegram/docs/`.
+
+Secrets and OAuth credential files are deliberately not stored in the public repository.
