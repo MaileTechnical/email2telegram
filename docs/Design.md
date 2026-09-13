@@ -64,11 +64,37 @@ The entry point is `handle_request(event, context)` in `main.py`.
 
 ### Authentication
 
-The function obtains the configured Gmail OAuth token from Secret Manager. The secret name comes from `GMAIL_TOKEN_SECRET`.
+The function obtains the configured Gmail OAuth token from Secret Manager. The
+secret name comes from `GMAIL_TOKEN_SECRET`.
 
-The token is converted into Google OAuth credentials with the Gmail `modify` scope.
+The token is converted into Google OAuth credentials with the Gmail `modify`
+scope.
 
-The Telegram bot token is also retrieved from Secret Manager using `TELEGRAM_BOT_TOKEN_SECRET`.
+The Gmail OAuth authorization used by production routes requires special
+operational handling. The OAuth client is currently an External application in
+Google's Testing state. A Retrieve authorization created without 2-Step
+Verification produced a refresh token with a seven-day expiration. A subsequent
+authorization created after enabling 2-Step Verification and creating a Google
+App Password produced a different refresh token for which Google reported no
+refresh-token expiration.
+
+The reason for this difference is not established. The production procedure
+therefore treats the following as required when creating or recreating a Gmail
+OAuth token:
+
+1. Enable 2-Step Verification on the Gmail account.
+2. Create a Google App Password for the account.
+3. Run `utils/genOauthToken.py` and authorize the Gmail account.
+4. Store the resulting token in the route's Secret Manager secret.
+5. Perform an end-to-end forwarding test.
+
+This procedure records an observed production requirement; it does not assert
+that the App Password is itself used by the OAuth flow or that either
+2-Step Verification or an App Password officially changes Google's OAuth
+refresh-token expiration policy.
+
+The Telegram bot token is also retrieved from Secret Manager using
+`TELEGRAM_BOT_TOKEN_SECRET`.
 
 ### Message discovery
 

@@ -79,16 +79,14 @@ Use the existing naming conventions.
 
 For example, for a hypothetical route named `newroute`:
 
-```text
-Gmail account:             designated Gmail account
-Pub/Sub topic:             gmail-notifications-newroute
-Telegram topic:            <new Telegram topic ID>
-OAuth secret:              gmail_token_newroute
-Forwarding function:       email-to-telegram-newroute
-Renewal function:          renew-gmail-watch-newroute
-Scheduler job:             renew-gmail-watch-newroute-job
-Environment file:          .env.newroute.yaml
-```
+    Gmail account:             designated Gmail account
+    Pub/Sub topic:             gmail-notifications-newroute
+    Telegram topic:            <new Telegram topic ID>
+    OAuth secret:              gmail_token_newroute
+    Forwarding function:       email-to-telegram-newroute
+    Renewal function:          renew-gmail-watch-newroute
+    Scheduler job:             renew-gmail-watch-newroute-job
+    Environment file:          .env.newroute.yaml
 
 The actual Gmail address does not need to appear in the repository documentation.
 
@@ -96,45 +94,62 @@ The actual Gmail address does not need to appear in the repository documentation
 
 If the Gmail account has not yet been used, send a few emails to and from it
 to establish some normal usage. This step involves requesting API authorization
-to the Gmail account, and Google sometimes treats such a request for a newly 
+to the Gmail account, and Google sometimes treats such a request for a newly
 created account as suspicious.
 
 Ensure all emails sent to the new account are received in the inbox.
 Mark any that fall into the Spam folder as not spam.
 
+#### Gmail account authentication prerequisites
+
+Before generating the OAuth token:
+
+1. Enable 2-Step Verification on the Gmail account.
+2. Create a Google App Password for the Gmail account.
+
+These steps are part of the production token-generation procedure because they
+were present when the current long-lived production-style OAuth token was
+created, whereas an earlier Retrieve authorization without them produced a
+refresh token with a seven-day expiration.
+
+The reason for this behavior is not established. The App Password is not
+entered into `utils/genOauthToken.py`; it is an observed prerequisite for the
+authorization procedure, not a credential used directly by this application.
+
 From the repository root, run the OAuth-token utility:
 
-```bash
-python3 utils/genOauthToken.py
-```
+    python3 utils/genOauthToken.py
 
 Follow the utility's prompts to authorize the Gmail account.
 
 The utility produces OAuth token material that must be kept secure. Do not email it, paste it into a chat, commit it to Git, or otherwise allow it to escape the machine on which it was generated.
 
+After generating a new or replacement token, perform an end-to-end test of the
+route before considering the token replacement complete. Also schedule a
+follow-up end-to-end test approximately seven days later. This provides an
+operational check that the new authorization has not acquired the seven-day
+expiration behavior observed with the previous Retrieve authorization.
+
+If the token continues to work, repeat the test at progressively longer
+intervals as appropriate for the unattended system.
+
 Create a Secret Manager secret for the route:
 
-```bash
-gcloud secrets create gmail_token_newroute \
-  --replication-policy=automatic \
-  --project=email-to-telegram-455900
-```
+    gcloud secrets create gmail_token_newroute \
+      --replication-policy=automatic \
+      --project=email-to-telegram-455900
 
 Add the OAuth token as the first secret version. If the utility produced the token in a file, use:
 
-```bash
-gcloud secrets versions add gmail_token_newroute \
-  --data-file=<token-file> \
-  --project=email-to-telegram-455900
-```
+    gcloud secrets versions add gmail_token_newroute \
+      --data-file=<token-file> \
+      --project=email-to-telegram-455900
 
 If the token is instead available through standard input, the equivalent form is:
 
-```bash
-cat <token-file> | gcloud secrets versions add gmail_token_newroute \
-  --data-file=- \
-  --project=email-to-telegram-455900
-```
+    cat <token-file> | gcloud secrets versions add gmail_token_newroute \
+      --data-file=- \
+      --project=email-to-telegram-455900
 
 Do not put the token itself in the environment file.
 
@@ -144,21 +159,17 @@ The Cloud Functions must also have permission to access the secret. Follow the s
 
 Create a topic dedicated to the new Gmail account:
 
-```bash
-gcloud pubsub topics create gmail-notifications-newroute \
-  --project=email-to-telegram-455900
-```
+    gcloud pubsub topics create gmail-notifications-newroute \
+      --project=email-to-telegram-455900
 
 Grant the Gmail API service account permission to publish to the topic.
 
 For the Gmail push-notification service account, grant the Pub/Sub Publisher role on the topic:
 
-```bash
-gcloud pubsub topics add-iam-policy-binding gmail-notifications-newroute \
-  --member="serviceAccount:gmail-api-push@system.gserviceaccount.com" \
-  --role="roles/pubsub.publisher" \
-  --project=email-to-telegram-455900
-```
+    gcloud pubsub topics add-iam-policy-binding gmail-notifications-newroute \
+      --member="serviceAccount:gmail-api-push@system.gserviceaccount.com" \
+      --role="roles/pubsub.publisher" \
+      --project=email-to-telegram-455900
 
 This permission is required before the Gmail `users.watch()` call can successfully use the topic.
 
@@ -166,28 +177,22 @@ This permission is required before the Gmail `users.watch()` call can successful
 
 Create a new environment file following the existing pattern:
 
-```text
-.env.newroute.yaml
-```
+    .env.newroute.yaml
 
 Copy the contents of an existing environment file:
 
-```bash
-cp .env.rescue.yaml .env.newroute.yaml
-```
+    cp .env.rescue.yaml .env.newroute.yaml
 
 Edit the new file and change every route-specific value.
 
 The file should contain values corresponding to:
 
-```text
-TELEGRAM_CHAT_ID
-TELEGRAM_TOPIC_ID
-GCP_PROJECT
-GMAIL_TOKEN_SECRET
-TELEGRAM_BOT_TOKEN_SECRET
-GMAIL_PUBSUB_TOPIC
-```
+    TELEGRAM_CHAT_ID
+    TELEGRAM_TOPIC_ID
+    GCP_PROJECT
+    GMAIL_TOKEN_SECRET
+    TELEGRAM_BOT_TOKEN_SECRET
+    GMAIL_PUBSUB_TOPIC
 
 The file contains secret *names*, not secret values.
 
@@ -197,64 +202,52 @@ The current Makefile uses `SOLUTION` case statements to map the logical route to
 
 Add the new route to all applicable case statements in:
 
-```text
-deploy
-deploy-watch
-schedule-watch
-delete-schedule-watch
-logs
-logs-watch
-```
+    deploy
+    deploy-watch
+    schedule-watch
+    delete-schedule-watch
+    logs
+    logs-watch
 
 For example, the forwarding deployment case must contain an entry analogous to:
 
-```make
-newroute) \
-    FUNCTION_NAME=email-to-telegram-newroute; \
-    ENV_FILE=.env.newroute.yaml; \
-    TRIGGER_TOPIC=gmail-notifications-newroute; \
-    ;;
-```
+    newroute) \
+        FUNCTION_NAME=email-to-telegram-newroute; \
+        ENV_FILE=.env.newroute.yaml; \
+        TRIGGER_TOPIC=gmail-notifications-newroute; \
+        ;;
 
 The renewal deployment case must map `newroute` to:
 
-```text
-renew-gmail-watch-newroute
-.env.newroute.yaml
-```
+    renew-gmail-watch-newroute
+    .env.newroute.yaml
 
 The Scheduler case must map it to:
 
-```text
-renew-gmail-watch-newroute-job
-renew-gmail-watch-newroute
-```
+    renew-gmail-watch-newroute-job
+    renew-gmail-watch-newroute
 
 The logging cases must map it to the appropriate forwarding and renewal functions.
 
 Add explicit convenience targets analogous to the existing routes:
 
-```make
-deploy-newroute:
-  $(MAKE) deploy SOLUTION=newroute
+    deploy-newroute:
+      $(MAKE) deploy SOLUTION=newroute
 
-deploy-watch-newroute:
-  $(MAKE) deploy-watch SOLUTION=newroute
+    deploy-watch-newroute:
+      $(MAKE) deploy-watch SOLUTION=newroute
 
-schedule-watch-newroute:
-  $(MAKE) schedule-watch SOLUTION=newroute
+    schedule-watch-newroute:
+      $(MAKE) schedule-watch SOLUTION=newroute
 
-delete-schedule-watch-newroute:
-  $(MAKE) delete-schedule-watch SOLUTION=newroute
-```
+    delete-schedule-watch-newroute:
+      $(MAKE) delete-schedule-watch SOLUTION=newroute
 
 Also extend the aggregate targets if appropriate.
 
 After editing the Makefile, inspect the change carefully:
 
-```bash
-git diff
-```
+    git diff
 
 The Makefile is part of the production deployment mechanism, so test the new route explicitly before relying on an aggregate target.
 
@@ -262,38 +255,28 @@ The Makefile is part of the production deployment mechanism, so test the new rou
 
 From the repository root:
 
-```bash
-make deploy-newroute
-```
+    make deploy-newroute
 
 This is equivalent to:
 
-```bash
-make deploy SOLUTION=newroute
-```
+    make deploy SOLUTION=newroute
 
 Verify that the new function is active:
 
-```bash
-gcloud functions list \
-  --project=email-to-telegram-455900 \
-  --regions=us-central1 \
-  --format="table(name.basename(),buildConfig.runtime,state)"
-```
+    gcloud functions list \
+      --project=email-to-telegram-455900 \
+      --regions=us-central1 \
+      --format="table(name.basename(),buildConfig.runtime,state)"
 
 ### Step 7: Deploy the renewal function
 
 Deploy the renewal function:
 
-```bash
-make deploy-watch-newroute
-```
+    make deploy-watch-newroute
 
 This is equivalent to:
 
-```bash
-make deploy-watch SOLUTION=newroute
-```
+    make deploy-watch SOLUTION=newroute
 
 Verify that the renewal function is `ACTIVE`.
 
@@ -301,15 +284,11 @@ Verify that the renewal function is `ACTIVE`.
 
 Create or update the Scheduler job:
 
-```bash
-make schedule-watch-newroute
-```
+    make schedule-watch-newroute
 
 This is equivalent to:
 
-```bash
-make schedule-watch SOLUTION=newroute
-```
+    make schedule-watch SOLUTION=newroute
 
 The Makefile configures the job with:
 
@@ -323,11 +302,9 @@ The Makefile configures the job with:
 
 Verify the resulting job:
 
-```bash
-gcloud scheduler jobs describe renew-gmail-watch-newroute-job \
-  --location=us-central1 \
-  --project=email-to-telegram-455900
-```
+    gcloud scheduler jobs describe renew-gmail-watch-newroute-job \
+      --location=us-central1 \
+      --project=email-to-telegram-455900
 
 Confirm that the job is enabled and that its URI, OIDC configuration, schedule, and time zone are correct.
 
@@ -335,17 +312,13 @@ Confirm that the job is enabled and that its URI, OIDC configuration, schedule, 
 
 Run the Scheduler job manually:
 
-```bash
-gcloud scheduler jobs run renew-gmail-watch-newroute-job \
-  --location=us-central1 \
-  --project=email-to-telegram-455900
-```
+    gcloud scheduler jobs run renew-gmail-watch-newroute-job \
+      --location=us-central1 \
+      --project=email-to-telegram-455900
 
 Then inspect the renewal function logs:
 
-```bash
-make logs-watch SOLUTION=newroute
-```
+    make logs-watch SOLUTION=newroute
 
 The logs should show successful startup and execution without an exception.
 
@@ -440,14 +413,39 @@ Local OAuth token files produced during Gmail authorization are temporary workin
 Once the token has been successfully stored in Google Cloud Secret Manager and the deployed
 renewal function has been verified, the local token files should be deleted.
 
-The repository does not require local copies of production OAuth tokens for normal 
-operation or disaster recovery. 
+The repository does not require local copies of production OAuth tokens for normal
+operation or disaster recovery.
 If a Gmail OAuth token must be recreated, use `utils/genOauthToken.py` to authorize the
 account again and store the resulting token in the appropriate Secret Manager secret.
 
+### OAuth token expiration diagnostic
+
+If a production route begins reporting an error such as:
+
+    invalid_grant: Token has been expired or revoked.
+
+check the Gmail OAuth token before changing application code or Google Cloud
+configuration.
+
+The Retrieve route experienced this failure in September 2026. The stored
+refresh token had a reported fixed expiration approximately seven days after
+its authorization. Replacing the Secret Manager value with a newly generated
+OAuth token restored forwarding immediately.
+
+The recovery procedure is:
+
+1. Generate a new OAuth token using the Gmail account authentication
+   prerequisites above.
+2. Add it as a new Secret Manager version.
+3. Send a real test email to the affected Gmail account.
+4. Verify that it is forwarded to the correct Telegram topic.
+5. Verify that the Gmail message is marked read.
+6. Retain the previous Secret Manager version as a rollback option until the
+   new token has been validated.
+7. Schedule a follow-up end-to-end test approximately seven days later.
+
 Likewise, no separate local copy of the Telegram bot token is required.
 The production token is maintained in Secret Manager and can be replaced through Telegram's BotFather if necessary.
-
 
 ## 8. Repository portability
 
@@ -489,36 +487,34 @@ Keep runtime upgrades isolated from unrelated application changes.
 
 The authoritative production names currently used by the Makefile are:
 
-```text
-Project:
-    email-to-telegram-455900
+    Project:
+        email-to-telegram-455900
 
-Region:
-    us-central1
+    Region:
+        us-central1
 
-Forwarding:
-    email-to-telegram-rescue
-    email-to-telegram-retrieve
+    Forwarding:
+        email-to-telegram-rescue
+        email-to-telegram-retrieve
 
-Renewal:
-    renew-gmail-watch-rescue
-    renew-gmail-watch-retrieve
+    Renewal:
+        renew-gmail-watch-rescue
+        renew-gmail-watch-retrieve
 
-Pub/Sub:
-    gmail-notifications-rescue
-    gmail-notifications-retrieve
+    Pub/Sub:
+        gmail-notifications-rescue
+        gmail-notifications-retrieve
 
-Scheduler:
-    renew-gmail-watch-rescue-job
-    renew-gmail-watch-retrieve-job
+    Scheduler:
+        renew-gmail-watch-rescue-job
+        renew-gmail-watch-retrieve-job
 
-Secrets:
-    gmail_token_azffrescue
-    gmail_token_azffretrieve
-    telegram_bot_token
+    Secrets:
+        gmail_token_azffrescue
+        gmail_token_azffretrieve
+        telegram_bot_token
 
-Scheduler service account:
-    506739284793-compute@developer.gserviceaccount.com
-```
+    Scheduler service account:
+        506739284793-compute@developer.gserviceaccount.com
 
 Treat these names as deployment-specific configuration, not as identifiers that should be copied into application logic unnecessarily.
