@@ -26,6 +26,7 @@ The system depends on:
 - **Google Cloud Functions (2nd gen / Cloud Run functions)** — runs the forwarding and watch-renewal Python code.
 - **Google Cloud Scheduler** — invokes the renewal functions daily.
 - **Google Cloud Secret Manager** — stores Gmail OAuth tokens and the Telegram bot token.
+- **Google OAuth** — provides Gmail authorization for each forwarding path. Each route has its own Gmail OAuth token, which is stored in Secret Manager.
 - **Telegram Bot API** — delivers forwarded messages to the selected group topic.
 
 The production Google Cloud project is `email-to-telegram-455900`, in region `us-central1`.
@@ -45,6 +46,7 @@ For each Gmail account:
 
 Because Gmail watches expire, a separate renewal function calls Gmail `users.watch()` daily.
 
+Gmail OAuth authorization is maintained separately from Gmail watch renewal; if an OAuth token expires or is revoked, it must be regenerated and replaced in Secret Manager.
 ## 5. Operational characteristics and limitations
 
 The current forwarding implementation:

@@ -160,7 +160,28 @@ Look for:
 
 A function exception should normally cause the event delivery to be retried. If the message remains unread, the retry should provide another opportunity to process it.
 
-### Step 4: Check Telegram
+### Step 4: Gmail OAuth token failure
+
+If the forwarding function fails with an error such as:
+
+    invalid_grant: Token has been expired or revoked.
+
+the Gmail OAuth refresh token may no longer be valid.
+
+Before changing the forwarding function, Pub/Sub configuration, or Gmail watch configuration, check the OAuth token used by the affected route.
+
+If the token is invalid or has expired:
+
+1. Generate a new Gmail OAuth token using the procedure in `Maintenance.md`.
+2. Add the new token as a new version of the route's Secret Manager secret.
+3. Send a real test message to the affected Gmail account.
+4. Verify that the message is forwarded to the correct Telegram topic.
+5. Verify that the Gmail message is marked read.
+6. Retain the previous Secret Manager version until the replacement token has been validated.
+
+A successful renewal-function invocation does not necessarily prove that the forwarding function has a usable Gmail OAuth token. The forwarding function and renewal function both use the route's Gmail OAuth credentials, but a token failure can first become apparent when the forwarding function attempts to access Gmail.
+
+### Step 5: Check Telegram
 
 Verify that:
 
@@ -170,7 +191,7 @@ Verify that:
 * the configured topic ID is correct;
 * the bot token is valid.
 
-### Step 5: Allow for retry
+### Step 6: Allow for retry
 
 A failed forwarding invocation does not necessarily mean that the message has been lost.
 
